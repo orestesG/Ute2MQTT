@@ -98,15 +98,17 @@ class UTEClient:
     def get_current_consumption(self, account_id: str) -> Optional[Dict[str, Any]]:
         """Obtiene la simulación de consumo actual."""
         response = self._request(
-            "POST", 
-            "/accounts/consumption/simulation", 
+            "POST",
+            "/accounts/consumption/simulation",
             json={"accountId": account_id},
             timeout=30
         )
-        
+
         if response is not None and response.status_code == 200:
-            return response.json()
-            
+            data = response.json()
+            logger.info(f"[simulation] {data}")
+            return data
+
         code = response.status_code if response is not None else 'Error'
         logger.error(f"Error al obtener consumo: {code}")
         return None
@@ -114,31 +116,35 @@ class UTEClient:
     def get_total_debt(self, account_id: str) -> Optional[float]:
         """Obtiene la deuda total de una cuenta."""
         response = self._request("GET", f"/invoices/totalDebt/{account_id}", timeout=30)
-        
+
         if response is not None and response.status_code == 200:
             try:
-                return float(response.text)
+                value = float(response.text)
+                logger.info(f"[totalDebt] {value}")
+                return value
             except ValueError:
                 return 0.0
-                
+
         code = response.status_code if response is not None else 'Error'
         logger.error(f"Error al obtener deuda: {code}")
         return None
 
     def get_consumption_by_band(
-        self, 
-        service_point_id: str, 
+        self,
+        service_point_id: str,
         schedule_code: str,
-        start_date: str, 
+        start_date: str,
         end_date: str
     ) -> Optional[List[Dict[str, Any]]]:
         """Obtiene el consumo desglosado por franja horaria."""
         endpoint = f"/accounts/{service_point_id}/calculateConsumptionForPlan/{schedule_code}/{start_date}/{end_date}"
         response = self._request("GET", endpoint, timeout=30)
-        
+
         if response is not None and response.status_code == 200:
-            return response.json()
-            
+            data = response.json()
+            logger.info(f"[bands] {data}")
+            return data
+
         code = response.status_code if response is not None else 'Error'
         logger.error(f"Error al obtener consumo por franja: {code}")
         return None

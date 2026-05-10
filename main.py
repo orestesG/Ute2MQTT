@@ -9,7 +9,7 @@ import os
 import sys
 import logging
 import signal
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 from ute.session import UTESession
@@ -109,28 +109,45 @@ class Ute2MQTT:
         # Obtener deuda total
         debt = client.get_total_debt(self.account_id)
         
+        # Registrar error de simulation si la API lo indica
+        if consumption.get("errorMessage"):
+            logger.warning(f"Simulation API: {consumption['errorMessage']}")
+
         # Preparar datos base
+        period_start = consumption.get("initialDate")
+        period_end   = consumption.get("finalDate")
+
+        # Fallback: si la API no retorna fechas, usar el mes calendario actual
+        if not period_start or not period_end:
+            today = date.today()
+            period_start = today.replace(day=1).strftime("%Y-%m-%d")
+            period_end   = today.strftime("%Y-%m-%d")
+            logger.info(f"Fechas de período no disponibles desde simulation; usando mes actual: {period_start} → {period_end}")
+
         state = {
             "current_consumption": consumption.get("currentConsumption", 0),
             "current_spending": consumption.get("currentSpending", 0),
             "total_debt": debt or 0,
             "tariff": self.tariff,
-            "period_start": consumption.get("initialDate"),
-            "period_end": consumption.get("finalDate"),
+            "period_start": period_start,
+            "period_end": period_end,
         }
-        
+
         # Obtener y procesar bandas si corresponde
-        if self.schedule_code and state["period_start"] and state["period_end"]:
+        if self.schedule_code:
             band_data = client.get_consumption_by_band(
                 self.service_point_id,
                 self.schedule_code,
-                state["period_start"],
-                state["period_end"]
+                period_start,
+                period_end
             )
-            
+
             if band_data:
                 processed_bands = TariffProcessor.process_bands(self.tariff, band_data)
                 state.update(processed_bands)
+                # Calcular consumo total desde las bandas si simulation no lo dio
+                if not consumption.get("currentConsumption"):
+                    state["current_consumption"] = sum(processed_bands.values())
         
         logger.info(f"Datos recolectados: {state}")
         
