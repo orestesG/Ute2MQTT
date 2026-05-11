@@ -161,6 +161,14 @@ class MQTTPublisher:
                 "device_class": "timestamp",
                 "icon": "mdi:clock-outline",
             },
+            {
+                "name": "Próxima Actualización",
+                "unique_id": f"ute_{service_id}_next_update",
+                "state_topic": f"{base_topic}/scheduler",
+                "value_template": "{{ value_json.next_run_at }}",
+                "device_class": "timestamp",
+                "icon": "mdi:clock-fast",
+            },
         ]
         
         # Agregar sensores de banda según tipo de tarifa
@@ -262,3 +270,18 @@ class MQTTPublisher:
             logger.info(f"Publicado estado para servicio {service_id}")
         else:
             logger.error(f"Error al publicar estado: {result.rc}")
+
+    def publish_scheduler_info(self, service_id: str, next_run_at: datetime):
+        """Publica la próxima fecha de ejecución al tópico de scheduler."""
+        if not self.client or not self.connected:
+            logger.error("Intento de publicación sin conexión MQTT activa")
+            return
+
+        topic = f"{self.topic_prefix}/{service_id}/scheduler"
+        payload = json.dumps({"next_run_at": next_run_at.astimezone().isoformat()})
+
+        result = self.client.publish(topic, payload, retain=True)
+        if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            logger.info(f"Publicada próxima ejecución para servicio {service_id}: {next_run_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            logger.error(f"Error al publicar info de scheduler: {result.rc}")

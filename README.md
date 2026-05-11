@@ -23,8 +23,9 @@ Obtiene datos de consumo eléctrico desde la API del proveedor de energía y los
 - ✅ **Auto-descubrimiento**: Integración automática con Home Assistant via MQTT Discovery
 - ✅ **Multi-tarifa**: Soporte para TRT (Triple), TRD (Doble), TRS/TGS (Simple)
 - ✅ **Reautenticación Automática**: Se reautentica automáticamente si los tokens expiran
-- ✅ **Ejecución Programada**: Scheduler configurable con ventanas horarias AM/PM
-- ✅ **Containerizado**: Completamente dockerizado para fácil despliegue
+- ✅ **Ejecución Programada**: Scheduler configurable — ventana diaria AM/PM o intervalo fijo en horas
+- ✅ **Próxima Actualización**: Sensor MQTT que muestra cuándo es la próxima ejecución
+- ✅ **Containerizado**: Docker Compose y Add-on nativo de Home Assistant OS
 - ✅ **Sensores en Tiempo Real**: Consumo, gasto, deuda y desglose por franja horaria
 
 ---
@@ -82,16 +83,10 @@ git clone https://github.com/rodrigocabraln/Ute2MQTT.git
 cd Ute2MQTT
 ```
 
-### Paso 2: Crear carpeta para credenciales y asignar permisos
-
-Es fundamental crear la carpeta manualmente y asignar los permisos correctos para que el proceso dentro de Docker (que corre con el UID 1000) pueda escribir los archivos de sesión cifrados. 
-
-Si omitís este paso o dejás que Docker cree la carpeta automáticamente, se creará como `root` y la aplicación fallará al intentar guardar tus datos.
+### Paso 2: Crear carpeta para credenciales
 
 ```bash
 mkdir -p credentials
-# Asignar permisos al usuario del contenedor (UID 1000)
-sudo chown -R 1000:1000 credentials
 ```
 
 > [!IMPORTANT]
@@ -209,6 +204,71 @@ INFO - Publicando discovery messages...
 INFO - Datos publicados exitosamente
 INFO - Próxima ejecución programada: ...
 ```
+
+---
+
+## 🐳 Instalación como Add-on de Home Assistant (HAOS)
+
+> [!NOTE]
+> Esta opción es para quienes usan **Home Assistant OS** (la imagen oficial en Raspberry Pi, NUC, etc.).
+> Si usás HA como contenedor Docker en un host Linux, usá la instalación con Docker Compose del paso anterior.
+
+### Ventajas del Add-on
+- Se instala y actualiza desde la UI de HA
+- Logs visibles en Settings → Add-ons → Ute2MQTT → Log
+- Se reinicia automáticamente con HA
+- No requiere SSH ni Docker externo
+
+### Paso 1: Agregar el repositorio
+
+1. En HA ir a **Settings** → **Add-ons** → **Add-on Store**
+2. Hacer clic en el ícono **⋮** (tres puntos) → **Repositories**
+3. Pegar la URL del repositorio y hacer clic en **Add**:
+   ```
+   https://github.com/orestesgpf/Ute2MQTT
+   ```
+4. Cerrar el diálogo y hacer clic en **Check for updates** (⋮ → Check for updates)
+5. El add-on **Ute2MQTT** aparece en la lista — hacer clic en **Install**
+
+### Paso 2: Obtener tus IDs de cuenta
+
+Antes de configurar el add-on necesitás los IDs de tu cuenta UTE. Para obtenerlos, ejecutá `setup.py` localmente:
+
+```bash
+git clone https://github.com/orestesgpf/Ute2MQTT.git
+cd Ute2MQTT
+pip install -r requirements.txt
+python setup.py
+```
+
+El setup mostrará tu `UTE_ACCOUNT_ID`, `UTE_SERVICE_ID`, `UTE_SERVICE_POINT_ID`, `UTE_TARIFF` y `UTE_SCHEDULE_CODE`.
+
+### Paso 3: Configurar el Add-on
+
+En la pestaña **Configuration** del add-on completá los campos:
+
+| Campo | Descripción |
+|---|---|
+| `ute_username` | Tu cédula de identidad (para autenticación automática) |
+| `ute_password` | Tu contraseña del portal UTE |
+| `ute_account_id` | Obtenido con setup.py |
+| `ute_service_id` | Obtenido con setup.py |
+| `ute_service_point_id` | Obtenido con setup.py |
+| `ute_tariff` | TRT / TRD / TRS / TGS |
+| `ute_schedule_code` | Solo para TRT/TRD (ej. `TRIPLERES19`) |
+| `encryption_key` | Cadena hex de 64 chars (generar con `openssl rand -hex 32`) |
+| `mqtt_broker` | `core-mosquitto` si usás el add-on Mosquitto, o la IP de tu broker |
+| `mqtt_username` / `mqtt_password` | Credenciales MQTT (si aplica) |
+| `schedule_interval_hours` | `0` para modo ventana diaria, o ej. `6` para ejecutar cada 6 horas |
+
+### Paso 4: Iniciar el Add-on
+
+1. Hacer clic en **Start**
+2. Habilitar **Start on boot** y **Watchdog**
+3. Revisar la pestaña **Log** — el add-on realizará el login automático en la primera ejecución
+
+> [!IMPORTANT]
+> Los tokens y credenciales se almacenan cifrados en `/data/` del add-on (persistente entre reinicios y actualizaciones).
 
 ---
 
@@ -363,14 +423,39 @@ cards:
         bar-card-row {
           margin: 2px 0;
         }
-  - type: custom:mushroom-template-card
-    primary: Última Actualización
-    secondary: >
-      {{ as_timestamp(states('sensor.ute_{service_id}_ultima_actualizacion')) |
-      timestamp_custom('%d/%m/%Y %H:%M', true) }}
-    icon: mdi:clock-outline
-    icon_color: grey
-    layout: horizontal
+  - type: horizontal-stack
+    cards:
+      - type: custom:mushroom-template-card
+        primary: Última Actualización
+        secondary: >
+          {% set ts = states('sensor.ute_{service_id}_ultima_actualizacion') %}
+          {% if ts in ['unknown', 'unavailable', ''] %}
+            Sin datos aún
+          {% else %}
+            {{ as_timestamp(ts) | timestamp_custom('%d/%m/%Y %H:%M', true) }}
+          {% endif %}
+        icon: mdi:clock-outline
+        icon_color: grey
+        layout: horizontal
+      - type: custom:mushroom-template-card
+        primary: Próxima Actualización
+        secondary: >
+          {% set next_ts = states('sensor.ute_{service_id}_proxima_actualizacion') %}
+          {% if next_ts in ['unknown', 'unavailable', ''] %}
+            No programada
+          {% else %}
+            {% set horas = ((as_timestamp(next_ts) - now().timestamp()) / 3600) | round(1) %}
+            {% if horas <= 0 %}
+              Pendiente
+            {% elif horas < 1 %}
+              En menos de 1 hora
+            {% else %}
+              En {{ horas }} h
+            {% endif %}
+          {% endif %}
+        icon: mdi:clock-fast
+        icon_color: blue
+        layout: horizontal
 ```
 
 **Recordá reemplazar `{service_id}` con tu ID de servicio real** en todos los nombres de sensores.

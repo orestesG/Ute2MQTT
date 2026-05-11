@@ -9,16 +9,28 @@ logger = logging.getLogger(__name__)
 
 class DailyScheduler:
     """
-    Planificador diario que ejecuta una tarea específica una vez al día,
-    seleccionando un horario aleatorio dentro de una ventana de tiempo definida.
+    Planificador que ejecuta una tarea periódicamente.
+
+    Modos:
+    - interval_hours: ejecuta cada N horas (ej. cada 6 h).
+    - time_window (AM/PM): ejecuta una vez al día en horario aleatorio dentro de la ventana.
     """
 
-    def __init__(self, task: Callable, time_window: str = "AM", run_on_start: bool = True):
+    def __init__(
+        self,
+        task: Callable,
+        time_window: str = "AM",
+        run_on_start: bool = True,
+        interval_hours: Optional[float] = None,
+        on_next_run_scheduled: Optional[Callable[["datetime"], None]] = None,
+    ):
         self.task = task
         self.time_window = time_window.upper()
         self.run_on_start = run_on_start
+        self.interval_hours = interval_hours
+        self.on_next_run_scheduled = on_next_run_scheduled
         self._stop_event = threading.Event()
-        self._last_run_date: Optional[date] = None  # <-- clave
+        self._last_run_date: Optional[date] = None
 
     def _window_bounds(self):
         if self.time_window == "AM":
@@ -32,13 +44,13 @@ class DailyScheduler:
         return time(hour=hour, minute=minute, second=0, microsecond=0)
 
     def _get_next_run_time(self) -> datetime:
-        """
-        Calcula la próxima fecha y hora de ejecución:
-        - Si la tarea ya se ejecutó hoy, se programa para mañana.
-        - Si no se ejecutó hoy, se intenta programar para hoy.
-        - Si el horario aleatorio generado para hoy ya pasó, se programa para mañana.
-        """
+        """Calcula la próxima fecha y hora de ejecución."""
         now = datetime.now()
+
+        if self.interval_hours is not None:
+            return now + timedelta(hours=self.interval_hours)
+
+        # Modo ventana diaria
         today = now.date()
 
         if self._last_run_date == today:
@@ -46,7 +58,6 @@ class DailyScheduler:
         else:
             target_date = today
 
-        # Intentar fecha objetivo; si queda en el pasado, mover a mañana
         t = self._random_time_in_window()
         next_run = datetime.combine(target_date, t)
 
@@ -78,6 +89,12 @@ class DailyScheduler:
 
             logger.info("Próxima ejecución programada para: %s", next_run.strftime('%Y-%m-%d %H:%M:%S'))
             logger.info("Esperando %.1f horas...", max(0, wait_seconds) / 3600)
+
+            if self.on_next_run_scheduled:
+                try:
+                    self.on_next_run_scheduled(next_run)
+                except Exception as e:
+                    logger.warning("Error en callback on_next_run_scheduled: %s", e)
 
             if self._stop_event.wait(timeout=max(0, wait_seconds)):
                 break

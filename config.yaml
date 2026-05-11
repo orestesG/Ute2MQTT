@@ -1,0 +1,60 @@
+name: "Ute2MQTT"
+version: "1.2.0"
+slug: "ute2mqtt"
+description: "Publica datos de consumo eléctrico de UTE en Home Assistant vía MQTT con auto-descubrimiento."
+url: "https://github.com/orestesgpf/Ute2MQTT"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+init: false
+startup: services
+boot: auto
+
+# Monta /config de HA para acceso al File Editor (opcional, credenciales van en /data)
+map:
+  - config:ro
+
+options:
+  # Credenciales UTE (cédula y contraseña del portal UTE)
+  ute_username: ""
+  ute_password: ""
+  # IDs de cuenta y servicio (obtenidos con setup.py)
+  ute_account_id: ""
+  ute_service_id: ""
+  ute_service_point_id: ""
+  ute_tariff: "TRS"
+  ute_schedule_code: ""
+  # Clave de encriptación (generar con: python3 -c "import secrets; print(secrets.token_hex(32))")
+  encryption_key: ""
+  # MQTT
+  mqtt_broker: "core-mosquitto"
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_topic_prefix: "UTE"
+  mqtt_discovery_prefix: "homeassistant"
+  mqtt_client_id: "ute2mqtt"
+  # Scheduler
+  schedule_time: "AM"
+  schedule_interval_hours: 0
+
+schema:
+  ute_username: str
+  ute_password: password
+  ute_account_id: str
+  ute_service_id: str
+  ute_service_point_id: str
+  ute_tariff: "list(TRT|TRD|TRS|TGS)"
+  ute_schedule_code: str
+  encryption_key: str
+  mqtt_broker: str
+  mqtt_port: int
+  mqtt_username: str
+  mqtt_password: password
+  mqtt_topic_prefix: str
+  mqtt_discovery_prefix: str
+  mqtt_client_id: str
+  schedule_time: "list(AM|PM)"
+  schedule_interval_hours: float
