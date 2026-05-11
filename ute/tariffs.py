@@ -6,6 +6,15 @@ Maneja la interpretación y transformación de datos según el tipo de tarifa.
 
 from typing import Dict, Any, List, Optional
 
+# Tarifas TRT vigentes 2026, sin IVA ni cargo fijo de servicio.
+# Fuente: https://www.ute.com.uy/clientes/soluciones-para-el-hogar/planes-hogar/plan-inteligente-hogares
+TRT_RATES_2026 = {
+    "punta": 12.034,
+    "llano": 5.172,
+    "valle": 2.443,
+}
+
+
 class TariffProcessor:
     """Procesa y agrega datos de consumo según la tarifa."""
 
@@ -45,6 +54,19 @@ class TariffProcessor:
             
         # Para otras tarifas no hacemos nada especial (o no soportan bandas)
         return result
+
+    @staticmethod
+    def estimate_spending_trt(punta: float, llano: float, valle: float) -> float:
+        """
+        Estima el gasto en UYU usando las tarifas TRT 2026 (sin IVA ni cargo fijo).
+        Se usa como fallback cuando la API de simulación retorna currentSpending=0.
+        """
+        return round(
+            punta * TRT_RATES_2026["punta"]
+            + llano * TRT_RATES_2026["llano"]
+            + valle * TRT_RATES_2026["valle"],
+            2,
+        )
 
     @staticmethod
     def get_schedule_code_from_id(peak_start_id: int) -> Optional[str]:

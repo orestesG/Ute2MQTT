@@ -61,6 +61,8 @@ class Ute2MQTT:
         
         # Configuración del planificador
         self.time_window = os.environ.get("SCHEDULE_TIME", "AM").upper()
+        _interval_env = os.environ.get("SCHEDULE_INTERVAL_HOURS", "").strip()
+        self.schedule_interval_hours: Optional[float] = float(_interval_env) if _interval_env else None
         
         # Inicializar Sesión
         try:
@@ -82,6 +84,7 @@ class Ute2MQTT:
         # Inicializar componentes
         self.mqtt: Optional[MQTTPublisher] = None
         self.scheduler: Optional[DailyScheduler] = None
+        self.next_run_at: Optional[datetime] = None
         
         # Caché para información del servicio
         # self.schedule_code ya se carga del entorno
@@ -148,7 +151,21 @@ class Ute2MQTT:
                 # Calcular consumo total desde las bandas si simulation no lo dio
                 if not consumption.get("currentConsumption"):
                     state["current_consumption"] = sum(processed_bands.values())
-        
+
+        # Fallback: estimar gasto desde bandas cuando simulation no provee currentSpending
+        if not state["current_spending"] and consumption.get("errorMessage") and self.tariff == "TRT":
+            punta = state.get("consumption_punta", 0)
+            llano = state.get("consumption_llano", 0)
+            valle = state.get("consumption_valle", 0)
+            if punta or llano or valle:
+                estimated = TariffProcessor.estimate_spending_trt(punta, llano, valle)
+                state["current_spending"] = estimated
+                logger.info(
+                    f"current_spending estimado por tarifas TRT 2026 (sin IVA/cargo fijo): "
+                    f"${estimated:.2f} "
+                    f"(punta={punta}kWh × $12.034 + llano={llano}kWh × $5.172 + valle={valle}kWh × $2.443)"
+                )
+
         logger.info(f"Datos recolectados: {state}")
         
         # Publicar a MQTT
@@ -175,6 +192,27 @@ class Ute2MQTT:
         finally:
             self.mqtt = None
     
+    def _on_next_run_scheduled(self, next_run: datetime):
+        """Publica la próxima fecha de ejecución a MQTT."""
+        self.next_run_at = next_run
+        try:
+            publisher = MQTTPublisher(
+                broker=self.mqtt_broker,
+                port=self.mqtt_port,
+                username=self.mqtt_username,
+                password=self.mqtt_password,
+                topic_prefix=self.mqtt_topic_prefix,
+                client_id=self.mqtt_client_id,
+                discovery_prefix=self.mqtt_discovery_prefix,
+            )
+            if publisher.connect():
+                publisher.publish_scheduler_info(self.service_id, next_run)
+                publisher.disconnect()
+            else:
+                logger.error("No se pudo conectar al broker MQTT para publicar próxima ejecución")
+        except Exception as e:
+            logger.error(f"Error publicando próxima ejecución: {e}")
+
     def run(self):
         """Ejecuta el cliente con planificador."""
         logger.info("Iniciando Ute2MQTT...")
@@ -192,10 +230,17 @@ class Ute2MQTT:
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         
+        if self.schedule_interval_hours:
+            logger.info(f"Modo intervalo: ejecutando cada {self.schedule_interval_hours} horas")
+        else:
+            logger.info(f"Modo ventana diaria: ejecutando en franja {self.time_window}")
+
         self.scheduler = DailyScheduler(
             task=self.fetch_and_publish,
             time_window=self.time_window,
-            run_on_start=True
+            run_on_start=True,
+            interval_hours=self.schedule_interval_hours,
+            on_next_run_scheduled=self._on_next_run_scheduled,
         )
         self.scheduler.start()
 
