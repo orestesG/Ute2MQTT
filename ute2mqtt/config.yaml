@@ -1,8 +1,13 @@
 name: "Ute2MQTT"
 version: "1.2.0"
 slug: "ute2mqtt"
-description: "Publica datos de consumo eléctrico de UTE en Home Assistant vía MQTT con auto-descubrimiento."
-url: "https://github.com/orestesgpf/Ute2MQTT"
+description: >-
+  Integra tu medidor inteligente de UTE con Home Assistant. Publica consumo
+  actual (kWh), gasto estimado en pesos, deuda y desglose por franja horaria
+  (Punta / Llano / Valle) vía MQTT con auto-descubrimiento. Soporta tarifas
+  TRT, TRD y TRS. Se autentica automáticamente con el portal de UTE y
+  programa las actualizaciones en una ventana horaria configurable.
+url: "https://github.com/orestesG/Ute2MQTT"
 arch:
   - aarch64
   - amd64
