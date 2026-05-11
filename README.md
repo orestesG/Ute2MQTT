@@ -225,7 +225,7 @@ INFO - Próxima ejecución programada: ...
 2. Hacer clic en el ícono **⋮** (tres puntos) → **Repositories**
 3. Pegar la URL del repositorio y hacer clic en **Add**:
    ```
-   https://github.com/orestesgpf/Ute2MQTT
+   https://github.com/orestesG/Ute2MQTT
    ```
 4. Cerrar el diálogo y hacer clic en **Check for updates** (⋮ → Check for updates)
 5. El add-on **Ute2MQTT** aparece en la lista — hacer clic en **Install**
@@ -235,7 +235,7 @@ INFO - Próxima ejecución programada: ...
 Antes de configurar el add-on necesitás los IDs de tu cuenta UTE. Para obtenerlos, ejecutá `setup.py` localmente:
 
 ```bash
-git clone https://github.com/orestesgpf/Ute2MQTT.git
+git clone https://github.com/orestesG/Ute2MQTT.git
 cd Ute2MQTT
 pip install -r requirements.txt
 python setup.py
