@@ -27,7 +27,8 @@ from ute.tariffs import TariffProcessor
 def main():
     username = os.environ.get("UTE_USERNAME", "").strip()
     password = os.environ.get("UTE_PASSWORD", "").strip()
-    encryption_key = os.environ.get("ENCRYPTION_KEY", "").strip()
+    import secrets
+    encryption_key = os.environ.get("ENCRYPTION_KEY", "").strip() or secrets.token_hex(32)
     credentials_path = os.environ.get("CREDENTIALS_PATH", "/data/credentials")
 
     if not username or not password:
