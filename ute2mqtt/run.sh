@@ -50,6 +50,25 @@ print(v if v is not None else '')
         export SCHEDULE_INTERVAL_HOURS="$_interval"
     fi
 
+    # Verificar que las credenciales existentes sean legibles con la clave actual.
+    # Si no lo son (clave cambiada, archivos corruptos), se eliminan para forzar re-setup.
+    if [ -f /data/credentials/oauth_config.enc ]; then
+        _creds_ok=$(python3 -c "
+import os, sys
+sys.path.insert(0, '/app')
+try:
+    from ute.credentials import CredentialsManager
+    cm = CredentialsManager('/data/credentials')
+    print('ok' if cm.get_oauth_config() else 'fail')
+except Exception:
+    print('fail')
+" 2>/dev/null)
+        if [ "$_creds_ok" != "ok" ]; then
+            echo "[ute2mqtt] Credenciales incompatibles con la clave actual — limpiando para re-autenticar..."
+            rm -f /data/credentials/*.enc
+        fi
+    fi
+
     # Modo descubrimiento: si ute_account_id está vacío, mostrar IDs en el log y salir
     if [ -z "$UTE_ACCOUNT_ID" ]; then
         echo "[ute2mqtt] ute_account_id no configurado — iniciando modo descubrimiento..."

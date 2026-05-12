@@ -1,5 +1,5 @@
 name: "Ute2MQTT"
-version: "1.3.4"
+version: "1.3.5"
 slug: "ute2mqtt"
 description: >-
   Integra tu medidor inteligente de UTE con Home Assistant. Publica consumo
