@@ -78,8 +78,8 @@ class Ute2MQTT:
             sys.exit(1)
             
         if self.tariff in ("TRT", "TRD") and not self.schedule_code:
-            logger.error(f"Para tarifa {self.tariff} se requiere UTE_SCHEDULE_CODE en el .env (ej. TRIPLERES19)")
-            sys.exit(1)
+            self.schedule_code = "TRIPLERES19"
+            logger.warning(f"UTE_SCHEDULE_CODE no configurado para tarifa {self.tariff}; usando default: TRIPLERES19 (horario punta 19-23h)")
             
         # Inicializar componentes
         self.mqtt: Optional[MQTTPublisher] = None
