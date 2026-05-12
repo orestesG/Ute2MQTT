@@ -37,6 +37,14 @@ print(v if v is not None else '')
         export SCHEDULE_INTERVAL_HOURS="$_interval"
     fi
 
+    # Modo descubrimiento: si ute_account_id está vacío, mostrar IDs en el log y salir
+    if [ -z "$UTE_ACCOUNT_ID" ]; then
+        echo "[ute2mqtt] ute_account_id no configurado — iniciando modo descubrimiento..."
+        UTE_USERNAME=$(_cfg ute_username) UTE_PASSWORD=$(_cfg ute_password) \
+            python3 /app/discover.py
+        exit 0
+    fi
+
     # Setup inicial si no hay credenciales almacenadas
     if [ ! -f /data/credentials/oauth_config.enc ]; then
         echo "[ute2mqtt] Primera ejecución: realizando setup automático..."
