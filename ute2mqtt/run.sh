@@ -15,7 +15,17 @@ print(v if v is not None else '')
 "
     }
 
-    export ENCRYPTION_KEY=$(_cfg encryption_key)
+    _key=$(_cfg encryption_key)
+    if [ -n "$_key" ]; then
+        export ENCRYPTION_KEY="$_key"
+    elif [ -f /data/encryption_key ]; then
+        export ENCRYPTION_KEY=$(cat /data/encryption_key)
+        echo "[ute2mqtt] Usando encryption_key persistida en /data/encryption_key"
+    else
+        export ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        echo "$ENCRYPTION_KEY" > /data/encryption_key
+        echo "[ute2mqtt] encryption_key generada automáticamente y guardada en /data/encryption_key"
+    fi
     export UTE_ACCOUNT_ID=$(_cfg ute_account_id)
     export UTE_SERVICE_ID=$(_cfg ute_service_id)
     export UTE_SERVICE_POINT_ID=$(_cfg ute_service_point_id)

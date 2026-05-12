@@ -1,5 +1,5 @@
 name: "Ute2MQTT"
-version: "1.3.2"
+version: "1.3.3"
 slug: "ute2mqtt"
 description: >-
   Integra tu medidor inteligente de UTE con Home Assistant. Publica consumo
@@ -27,7 +27,6 @@ options:
   ute_service_id: ""
   ute_service_point_id: ""
   ute_tariff: "TRS"
-  encryption_key: ""
   mqtt_broker: "core-mosquitto"
   mqtt_port: 1883
   mqtt_topic_prefix: "UTE"
@@ -44,7 +43,7 @@ schema:
   ute_service_point_id: str
   ute_tariff: "list(TRT|TRD|TRS|TGS)"
   ute_schedule_code: str?
-  encryption_key: str
+  encryption_key: str?
   mqtt_broker: str
   mqtt_port: int
   mqtt_username: str?
