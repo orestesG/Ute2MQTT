@@ -25,6 +25,9 @@ print(v if v is not None else '')
         export ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
         echo "$ENCRYPTION_KEY" > /data/encryption_key
         echo "[ute2mqtt] encryption_key generada automáticamente y guardada en /data/encryption_key"
+        # Limpiar credenciales anteriores (incompatibles con la nueva clave)
+        rm -f /data/credentials/*.enc
+        echo "[ute2mqtt] Credenciales anteriores eliminadas (se re-autenticará automáticamente)"
     fi
     export UTE_ACCOUNT_ID=$(_cfg ute_account_id)
     export UTE_SERVICE_ID=$(_cfg ute_service_id)
