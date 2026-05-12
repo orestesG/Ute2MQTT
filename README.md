@@ -219,56 +219,101 @@ INFO - Próxima ejecución programada: ...
 - Se reinicia automáticamente con HA
 - No requiere SSH ni Docker externo
 
-### Paso 1: Agregar el repositorio
+---
 
-1. En HA ir a **Settings** → **Add-ons** → **Add-on Store**
-2. Hacer clic en el ícono **⋮** (tres puntos) → **Repositories**
-3. Pegar la URL del repositorio y hacer clic en **Add**:
+### Paso 1: Instalar Mosquitto y crear usuario MQTT
+
+1. **Settings → Add-ons → Add-on Store** → buscar e instalar **Mosquitto broker** → Start
+2. Crear un usuario MQTT dedicado: **Settings → People → Users → Add User**
+   - Username: `ute2mqtt` (o cualquier nombre)
+   - Password: la que elijas
+   - Sin permisos de administrador
+3. Anotar el usuario y contraseña — los vas a necesitar en el Paso 3
+
+---
+
+### Paso 2: Agregar el repositorio e instalar el add-on
+
+1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
+2. Pegar y agregar:
    ```
    https://github.com/orestesG/Ute2MQTT
    ```
-4. Cerrar el diálogo y hacer clic en **Check for updates** (⋮ → Check for updates)
-5. El add-on **Ute2MQTT** aparece en la lista — hacer clic en **Install**
+3. Cerrar → **⋮ → Check for updates**
+4. El add-on **Ute2MQTT** aparece en la lista → **Install**
 
-### Paso 2: Obtener tus IDs de cuenta
+---
 
-Antes de configurar el add-on necesitás los IDs de tu cuenta UTE. Para obtenerlos, ejecutá `setup.py` localmente:
+### Paso 3: Modo Descubrimiento — obtener tus IDs de cuenta UTE
 
-```bash
-git clone https://github.com/orestesG/Ute2MQTT.git
-cd Ute2MQTT
-pip install -r requirements.txt
-python setup.py
-```
+El add-on incluye un **modo descubrimiento automático**: si dejás `ute_account_id` vacío, autentica con UTE y muestra todos tus IDs en el log.
 
-El setup mostrará tu `UTE_ACCOUNT_ID`, `UTE_SERVICE_ID`, `UTE_SERVICE_POINT_ID`, `UTE_TARIFF` y `UTE_SCHEDULE_CODE`.
+1. En la pestaña **Configuration** del add-on completá **solo estos campos**:
 
-### Paso 3: Configurar el Add-on
+   | Campo | Valor |
+   |---|---|
+   | `ute_username` | Tu cédula de identidad |
+   | `ute_password` | Tu contraseña del portal UTE |
+   | `ute_account_id` | *(dejar vacío)* |
+   | `mqtt_broker` | `core-mosquitto` |
 
-En la pestaña **Configuration** del add-on completá los campos:
+2. **Start** el add-on → ir a la pestaña **Log**
+3. Vas a ver algo como:
+   ```
+   [ute2mqtt] ute_account_id no configurado — iniciando modo descubrimiento...
+     Dirección  : CALLE EJEMPLO 1234
+     ute_account_id     = 123456789
+     ute_service_id     = 987654321
+     ute_service_point_id = 8647965855
+     ute_tariff         = TRT
+     ute_schedule_code  = TRIPLERES19
+   ```
+4. Anotar todos esos valores
 
-| Campo | Descripción |
-|---|---|
-| `ute_username` | Tu cédula de identidad (para autenticación automática) |
-| `ute_password` | Tu contraseña del portal UTE |
-| `ute_account_id` | Obtenido con setup.py |
-| `ute_service_id` | Obtenido con setup.py |
-| `ute_service_point_id` | Obtenido con setup.py |
-| `ute_tariff` | TRT / TRD / TRS / TGS |
-| `ute_schedule_code` | Solo para TRT/TRD (ej. `TRIPLERES19`) |
-| `encryption_key` | Cadena hex de 64 chars (generar con `openssl rand -hex 32`) |
-| `mqtt_broker` | `core-mosquitto` si usás el add-on Mosquitto, o la IP de tu broker |
-| `mqtt_username` / `mqtt_password` | Credenciales MQTT (si aplica) |
-| `schedule_interval_hours` | `0` para modo ventana diaria, o ej. `6` para ejecutar cada 6 horas |
+---
 
-### Paso 4: Iniciar el Add-on
+### Paso 4: Configuración completa
 
-1. Hacer clic en **Start**
-2. Habilitar **Start on boot** y **Watchdog**
-3. Revisar la pestaña **Log** — el add-on realizará el login automático en la primera ejecución
+1. Volver a **Configuration** y completar con los datos del paso anterior:
+
+   | Campo | Descripción |
+   |---|---|
+   | `ute_username` | Tu cédula de identidad |
+   | `ute_password` | Tu contraseña del portal UTE |
+   | `ute_account_id` | Obtenido en el Paso 3 |
+   | `ute_service_id` | Obtenido en el Paso 3 |
+   | `ute_service_point_id` | Obtenido en el Paso 3 |
+   | `ute_tariff` | TRT / TRD / TRS / TGS |
+   | `mqtt_broker` | `core-mosquitto` |
+   | `mqtt_username` | Usuario creado en el Paso 1 |
+   | `mqtt_password` | Contraseña del usuario MQTT |
+   | `schedule_time` | `AM` (6-12h) o `PM` (12-18h) |
+
+   **Campos opcionales** (se configuran automáticamente si se dejan vacíos):
+   - `encryption_key`: se genera automáticamente en la primera corrida
+   - `ute_schedule_code`: para TRT/TRD, por defecto usa `TRIPLERES19` (punta 19-23h)
+   - `schedule_interval_hours`: `0` para modo ventana diaria, o ej. `6` para cada 6 horas
+
+2. **Save → Start**
+3. Habilitar **Start on boot** y **Watchdog**
 
 > [!IMPORTANT]
-> Los tokens y credenciales se almacenan cifrados en `/data/` del add-on (persistente entre reinicios y actualizaciones).
+> En la primera ejecución el add-on autentica con UTE y guarda los tokens cifrados en `/data/` (persisten entre reinicios y actualizaciones). Si cambiás la `encryption_key` o la dejás vacía cuando ya había datos, el add-on detecta la incompatibilidad y re-autentica automáticamente.
+
+---
+
+### Paso 5: Verificar que funciona
+
+En la pestaña **Log** deberías ver:
+```
+[ute2mqtt] Primera ejecución: realizando setup automático...
+INFO: Setup completado exitosamente.
+INFO: Iniciando Ute2MQTT...
+INFO: current_spending estimado por tarifas TRT 2026: $XXX.XX
+INFO: Publicado estado para servicio XXXXXXXXX
+```
+
+Los sensores aparecen automáticamente en **Settings → Devices & Services → MQTT → Devices** como `UTE {service_id}`.
 
 ---
 
@@ -496,8 +541,8 @@ El cliente detecta automáticamente tu tarifa y ajusta los sensores disponibles:
 | `UTE_SERVICE_ID` | ID del servicio (Service Agreement ID) | ✅ | - |
 | `UTE_SERVICE_POINT_ID` | ID del punto de servicio (Service Point ID) | ✅ | - |
 | `UTE_TARIFF` | Tarifa del servicio (TRT, TRD, etc.) | ✅ | - |
-| `UTE_SCHEDULE_CODE` | Código de horario punta (ej. TRIPLERES19). Solo para TRT/TRD | ✅ (si aplica) | - |
-| `ENCRYPTION_KEY` | Clave de cifrado (64 caracteres hex) | ✅ | - |
+| `UTE_SCHEDULE_CODE` | Código de horario punta (ej. TRIPLERES19). Solo para TRT/TRD | ❌ | `TRIPLERES19` |
+| `ENCRYPTION_KEY` | Clave de cifrado (64 caracteres hex) | ❌ | Auto-generada |
 | `CREDENTIALS_PATH` | Ruta para almacenar credenciales cifradas | ❌ | `./credentials` |
 | `MQTT_BROKER` | Hostname/IP del broker MQTT | ✅ | - |
 | `MQTT_PORT` | Puerto del broker MQTT | ❌ | `1883` |

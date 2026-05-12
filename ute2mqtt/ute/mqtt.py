@@ -92,7 +92,17 @@ class MQTTPublisher:
             logger.info("Conectado al broker MQTT")
             self.connected = True
         else:
-            logger.error(f"Conexión MQTT fallida con código {rc}")
+            _rc_messages = {
+                1: "Protocolo MQTT no soportado por el broker",
+                2: "Client ID rechazado por el broker",
+                3: "Broker MQTT no disponible",
+                4: "Usuario o contraseña MQTT incorrectos",
+                5: "No autorizado — el broker requiere credenciales. "
+                   "Creá un usuario HA en Settings → People → Users y configurá "
+                   "mqtt_username / mqtt_password en el add-on",
+            }
+            msg = _rc_messages.get(rc, f"Error desconocido")
+            logger.error(f"Conexión MQTT fallida (código {rc}): {msg}")
     
     def _on_disconnect(self, client, userdata, rc):
         """Callback de desconexión MQTT."""
