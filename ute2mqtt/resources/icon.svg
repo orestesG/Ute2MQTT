@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="#0D1117"/>
+
+  <!-- Echo 3 (outer, most faded) -->
+  <path d="M62 14 L36 68 L56 68 L48 114 L82 56 L62 56 Z"
+        fill="none" stroke="#2ECC71" stroke-width="2" stroke-linejoin="round"
+        opacity="0.20" transform="translate(40, 0)"/>
+
+  <!-- Echo 2 (mid) -->
+  <path d="M62 14 L36 68 L56 68 L48 114 L82 56 L62 56 Z"
+        fill="none" stroke="#2ECC71" stroke-width="2.5" stroke-linejoin="round"
+        opacity="0.38" transform="translate(26, 0)"/>
+
+  <!-- Echo 1 (inner, semi-transparent) -->
+  <path d="M62 14 L36 68 L56 68 L48 114 L82 56 L62 56 Z"
+        fill="none" stroke="#2ECC71" stroke-width="3.5" stroke-linejoin="round"
+        opacity="0.58" transform="translate(13, 0)"/>
+
+  <!-- Lightning bolt (main, solid) -->
+  <path d="M62 14 L36 68 L56 68 L48 114 L82 56 L62 56 Z" fill="#F5A623"/>
+</svg>
