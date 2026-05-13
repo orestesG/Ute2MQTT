@@ -48,4 +48,33 @@ profile hassio_addon_ute2mqtt flags=(attach_disconnected,mediate_deleted) {
   @{PROC}/self/fd/ r,
   @{PROC}/self/fd/** rw,
   @{PROC}/self/maps r,
+
+  # S6-Overlay init system (imagen base de HA)
+  /init ix,
+  /run/s6/ r,
+  /run/s6/** rwix,
+  /run/s6-rc*/ r,
+  /run/s6-rc*/** rwix,
+  /etc/s6-overlay/ r,
+  /etc/s6-overlay/** r,
+  /run/fix-attrs.d/ r,
+  /run/fix-attrs.d/** r,
+
+  # Bashio (helper shell de HA)
+  /usr/lib/bashio/ r,
+  /usr/lib/bashio/** ix,
+
+  # Binarios del sistema (invocados por S6 internamente)
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/sbin/** ix,
+  /sbin/** ix,
+
+  # Capabilities mínimas para S6
+  capability chown,
+  capability setuid,
+  capability setgid,
+  capability fowner,
+  capability fsetid,
+  capability dac_override,
 }
