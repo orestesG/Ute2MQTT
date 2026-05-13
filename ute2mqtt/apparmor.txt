@@ -65,10 +65,17 @@ profile hassio_addon_ute2mqtt flags=(attach_disconnected,mediate_deleted) {
   /usr/lib/bashio/** ix,
 
   # Binarios del sistema (invocados por S6 internamente)
-  /bin/** ix,
-  /usr/bin/** ix,
-  /usr/sbin/** ix,
-  /sbin/** ix,
+  # rix: r necesario para dynamic linker y scripts de shell
+  /bin/** rix,
+  /usr/bin/** rix,
+  /usr/sbin/** rix,
+  /sbin/** rix,
+
+  # S6-Overlay v3: binarios en /command/ y /package/
+  /command/ r,
+  /command/** rix,
+  /package/ r,
+  /package/** rix,
 
   # Capabilities mínimas para S6
   capability chown,
