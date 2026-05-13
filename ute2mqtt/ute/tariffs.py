@@ -69,6 +69,38 @@ class TariffProcessor:
         )
 
     @staticmethod
+    def get_current_band(schedule_code: str) -> str:
+        """Calcula la franja horaria activa (punta/llano/valle) según el horario UTE vigente."""
+        from datetime import datetime
+
+        peak_start_hour = {
+            "TRIPLERES17": 17,
+            "TRIPLERES18": 18,
+            "TRIPLERES19": 19,
+        }.get(schedule_code)
+
+        if peak_start_hour is None:
+            return "unknown"
+
+        now = datetime.now()
+        hour = now.hour
+        weekday = now.weekday()  # 0=lun … 6=dom
+
+        # Valle: fin de semana completo
+        if weekday >= 5:
+            return "valle"
+
+        # Valle: noche profunda 23h–07h en días hábiles
+        if hour >= 23 or hour < 7:
+            return "valle"
+
+        # Punta: días hábiles, peak_start hasta peak_start+4 (ej. 19→23)
+        if peak_start_hour <= hour < peak_start_hour + 4:
+            return "punta"
+
+        return "llano"
+
+    @staticmethod
     def get_schedule_code_from_id(peak_start_id: int) -> Optional[str]:
         """Convierte el ID numérico de inicio de horario punta a código de tarifa."""
         # Mapeo de IDs a códigos

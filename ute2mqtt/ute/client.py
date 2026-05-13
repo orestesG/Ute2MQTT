@@ -2,6 +2,7 @@
 Módulo Cliente API para el Proveedor de Energía.
 """
 
+import calendar
 import logging
 import requests
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
@@ -148,6 +149,21 @@ class UTEClient:
         code = response.status_code if response is not None else 'Error'
         logger.error(f"Error al obtener consumo por franja: {code}")
         return None
+
+    def get_monthly_consumption(
+        self,
+        service_point_id: str,
+        schedule_code: str,
+        year: int,
+        month: int
+    ) -> Optional[float]:
+        """Retorna el consumo total (kWh) de un mes específico sumando todas las bandas."""
+        first_day = f"{year}-{month:02d}-01"
+        last_day = f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
+        band_data = self.get_consumption_by_band(service_point_id, schedule_code, first_day, last_day)
+        if not band_data:
+            return None
+        return round(sum(b.get("consumption", 0) for b in band_data), 3)
 
     def get_peak_config(self, account_id: str, service_id: str) -> Optional[Dict[str, Any]]:
         """Obtiene la configuración de horario punta del servicio."""

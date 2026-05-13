@@ -215,6 +215,20 @@ class MQTTPublisher:
                     "state_class": "total_increasing",
                     "icon": "mdi:flash-outline",
                 },
+                {
+                    "name": "Franja Actual",
+                    "unique_id": f"ute_{service_id}_band",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.current_band }}",
+                    "icon": "mdi:clock-time-four-outline",
+                },
+                {
+                    "name": "Historial Mensual",
+                    "unique_id": f"ute_{service_id}_monthly_history",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.monthly_history | tojson }}",
+                    "icon": "mdi:chart-bar",
+                },
             ])
         elif tariff == "TRD":
             # Tarifa Doble: PUNTA/FUERA_PUNTA
@@ -239,11 +253,28 @@ class MQTTPublisher:
                     "state_class": "total_increasing",
                     "icon": "mdi:flash-outline",
                 },
+                {
+                    "name": "Franja Actual",
+                    "unique_id": f"ute_{service_id}_band",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.current_band }}",
+                    "icon": "mdi:clock-time-four-outline",
+                },
+                {
+                    "name": "Historial Mensual",
+                    "unique_id": f"ute_{service_id}_monthly_history",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.monthly_history | tojson }}",
+                    "icon": "mdi:chart-bar",
+                },
             ])
         # TRS y otras tarifas: solo sensores base, sin bandas
         
         for sensor in sensors:
             sensor["device"] = device_info
+            sensor["availability_topic"] = f"{base_topic}/availability"
+            sensor["payload_available"] = "online"
+            sensor["payload_not_available"] = "offline"
             discovery_topic = f"{self.discovery_prefix}/sensor/{sensor['unique_id']}/config"
             
             self.client.publish(
@@ -295,3 +326,12 @@ class MQTTPublisher:
             logger.info(f"Publicada próxima ejecución para servicio {service_id}: {next_run_at.strftime('%Y-%m-%d %H:%M:%S')}")
         else:
             logger.error(f"Error al publicar info de scheduler: {result.rc}")
+
+    def publish_availability(self, service_id: str, online: bool):
+        """Publica online/offline al topic de availability (retain=True)."""
+        if not self.client or not self.connected:
+            return
+        topic = f"{self.topic_prefix}/{service_id}/availability"
+        payload = "online" if online else "offline"
+        self.client.publish(topic, payload, retain=True)
+        logger.debug(f"Availability publicada: {payload}")

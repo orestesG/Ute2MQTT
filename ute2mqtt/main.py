@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import signal
+import time
 from datetime import datetime, date
 from typing import Optional
 
@@ -91,6 +92,36 @@ class Ute2MQTT:
     
     
     
+    def _fetch_with_retry(self, func, retries: int = 2, base_delay: int = 30):
+        """Ejecuta func con hasta `retries` reintentos y backoff exponencial."""
+        for attempt in range(retries + 1):
+            result = func()
+            if result is not None:
+                return result
+            if attempt < retries:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"Intento {attempt + 1} fallido, reintentando en {delay}s...")
+                time.sleep(delay)
+        return None
+
+    def _publish_availability(self, online: bool):
+        """Abre una conexión MQTT efímera para publicar el estado de availability."""
+        try:
+            publisher = MQTTPublisher(
+                broker=self.mqtt_broker,
+                port=self.mqtt_port,
+                username=self.mqtt_username,
+                password=self.mqtt_password,
+                topic_prefix=self.mqtt_topic_prefix,
+                client_id=self.mqtt_client_id,
+                discovery_prefix=self.mqtt_discovery_prefix,
+            )
+            if publisher.connect():
+                publisher.publish_availability(self.service_id, online)
+                publisher.disconnect()
+        except Exception as e:
+            logger.error(f"Error publicando availability: {e}")
+
     def fetch_and_publish(self):
         """Tarea principal: obtener datos y publicar a MQTT."""
         logger.info("Iniciando obtención de datos...")
@@ -99,14 +130,16 @@ class Ute2MQTT:
         client = self.session.get_client()
         if not client:
             logger.error("No se pudo establecer sesión con el Proveedor (Credenciales inválidas o error de red)")
+            self._publish_availability(False)
             return
         
         
         
-        # Obtener consumo actual
-        consumption = client.get_current_consumption(self.account_id)
+        # Obtener consumo actual (con reintentos)
+        consumption = self._fetch_with_retry(lambda: client.get_current_consumption(self.account_id))
         if not consumption:
-            logger.error("Falló al obtener consumo")
+            logger.error("Falló al obtener consumo tras reintentos")
+            self._publish_availability(False)
             return
         
         # Obtener deuda total
@@ -152,6 +185,22 @@ class Ute2MQTT:
                 if not consumption.get("currentConsumption"):
                     state["current_consumption"] = sum(processed_bands.values())
 
+            # Franja horaria activa según schedule_code y hora local
+            state["current_band"] = TariffProcessor.get_current_band(self.schedule_code)
+
+            # Historial de los últimos 6 meses
+            today = date.today()
+            history = []
+            for i in range(6):
+                m = today.month - i
+                y = today.year
+                while m <= 0:
+                    m += 12
+                    y -= 1
+                kwh = client.get_monthly_consumption(self.service_point_id, self.schedule_code, y, m)
+                history.append({"month": f"{y}-{m:02d}", "kwh": round(kwh, 2) if kwh is not None else None})
+            state["monthly_history"] = history
+
         # Fallback: estimar gasto desde bandas cuando simulation no provee currentSpending
         if not state["current_spending"] and consumption.get("errorMessage") and self.tariff == "TRT":
             punta = state.get("consumption_punta", 0)
@@ -183,6 +232,7 @@ class Ute2MQTT:
             if self.mqtt.connect():
                  self.mqtt.publish_discovery(self.service_id, self.account_id, self.tariff)
                  self.mqtt.publish_state(self.service_id, state)
+                 self.mqtt.publish_availability(self.service_id, True)
                  self.mqtt.disconnect()
             else:
                  logger.error("No se pudo conectar al broker MQTT para publicar")
