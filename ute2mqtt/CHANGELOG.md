@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.14
+
+- **Fix**: el sensor "Historial Facturación" quedaba en `unknown` porque el JSON
+  superaba el límite de 255 caracteres del estado de un sensor en HA. Ahora se
+  publica el payload mínimo (`cycle` + `amount`), que es lo que consume el dashboard.
+
 ## 1.3.13
 
 - **Nuevo sensor "Historial Facturación"**: publica los montos reales facturados

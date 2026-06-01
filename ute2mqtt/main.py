@@ -206,7 +206,6 @@ class Ute2MQTT:
             # de cada factura es el mes anterior al vencimiento.
             invoices = client.get_invoices(self.account_id)
             if invoices:
-                kwh_by_month = {h["month"]: h["kwh"] for h in history}
                 billing = []
                 for inv in invoices:
                     exp_raw = inv.get("expirationDate")
@@ -220,18 +219,13 @@ class Ute2MQTT:
                     cy, cm = exp.year, exp.month - 1
                     if cm == 0:
                         cm, cy = 12, cy - 1
-                    cycle = f"{cy}-{cm:02d}"
                     amount = inv.get("monthCharges")
                     if amount is None:
                         amount = inv.get("totalAmount", 0)
-                    billing.append({
-                        "cycle": cycle,
-                        "amount": amount,
-                        "vto": exp.date().isoformat(),
-                        "kwh": kwh_by_month.get(cycle),
-                        "doc": inv.get("docNumber"),
-                        "source": "invoice",
-                    })
+                    # Solo cycle + amount: el estado de un sensor HA está limitado a
+                    # 255 caracteres, así que se publica el payload mínimo que consume
+                    # el dashboard (no vto/doc/kwh, que excederían el límite).
+                    billing.append({"cycle": f"{cy}-{cm:02d}", "amount": amount})
                 # Orden cronológico ascendente, últimos 6 ciclos cerrados
                 billing.sort(key=lambda b: b["cycle"])
                 state["billing_history"] = billing[-6:]
