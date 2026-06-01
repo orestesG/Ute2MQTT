@@ -130,6 +130,24 @@ class UTEClient:
         logger.error(f"Error al obtener deuda: {code}")
         return None
 
+    def get_invoices(self, account_id: str) -> Optional[List[Dict[str, Any]]]:
+        """Obtiene el historial de facturas emitidas (montos reales facturados).
+
+        Cada factura incluye `monthCharges`/`totalAmount` (con IVA + cargo fijo)
+        y `expirationDate`. Los campos `month`/`year` vienen en 0 (inservibles);
+        el período se deriva de la fecha de vencimiento.
+        """
+        response = self._request("GET", f"/invoices/{account_id}", timeout=30)
+
+        if response is not None and response.status_code == 200:
+            data = response.json()
+            logger.info(f"[invoices] {len(data) if isinstance(data, list) else 0} facturas")
+            return data if isinstance(data, list) else None
+
+        code = response.status_code if response is not None else 'Error'
+        logger.error(f"Error al obtener facturas: {code}")
+        return None
+
     def get_consumption_by_band(
         self,
         service_point_id: str,

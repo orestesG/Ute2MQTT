@@ -229,6 +229,13 @@ class MQTTPublisher:
                     "value_template": "{{ value_json.monthly_history | tojson }}",
                     "icon": "mdi:chart-bar",
                 },
+                {
+                    "name": "Historial Facturación",
+                    "unique_id": f"ute_{service_id}_billing_history",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.billing_history | tojson }}",
+                    "icon": "mdi:receipt-text",
+                },
             ])
         elif tariff == "TRD":
             # Tarifa Doble: PUNTA/FUERA_PUNTA
@@ -266,6 +273,13 @@ class MQTTPublisher:
                     "state_topic": f"{base_topic}/state",
                     "value_template": "{{ value_json.monthly_history | tojson }}",
                     "icon": "mdi:chart-bar",
+                },
+                {
+                    "name": "Historial Facturación",
+                    "unique_id": f"ute_{service_id}_billing_history",
+                    "state_topic": f"{base_topic}/state",
+                    "value_template": "{{ value_json.billing_history | tojson }}",
+                    "icon": "mdi:receipt-text",
                 },
             ])
         # TRS y otras tarifas: solo sensores base, sin bandas

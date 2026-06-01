@@ -201,6 +201,41 @@ class Ute2MQTT:
                 history.append({"month": f"{y}-{m:02d}", "kwh": round(kwh, 2) if kwh is not None else None})
             state["monthly_history"] = history
 
+            # Historial de facturación (montos reales facturados, a mes vencido).
+            # UTE cierra el día 26 y factura ~1 mes después → el ciclo de consumo
+            # de cada factura es el mes anterior al vencimiento.
+            invoices = client.get_invoices(self.account_id)
+            if invoices:
+                kwh_by_month = {h["month"]: h["kwh"] for h in history}
+                billing = []
+                for inv in invoices:
+                    exp_raw = inv.get("expirationDate")
+                    if not exp_raw:
+                        continue
+                    try:
+                        exp = datetime.fromisoformat(exp_raw)
+                    except ValueError:
+                        continue
+                    # ciclo = mes anterior al vencimiento (cierre día 26, a mes vencido)
+                    cy, cm = exp.year, exp.month - 1
+                    if cm == 0:
+                        cm, cy = 12, cy - 1
+                    cycle = f"{cy}-{cm:02d}"
+                    amount = inv.get("monthCharges")
+                    if amount is None:
+                        amount = inv.get("totalAmount", 0)
+                    billing.append({
+                        "cycle": cycle,
+                        "amount": amount,
+                        "vto": exp.date().isoformat(),
+                        "kwh": kwh_by_month.get(cycle),
+                        "doc": inv.get("docNumber"),
+                        "source": "invoice",
+                    })
+                # Orden cronológico ascendente, últimos 6 ciclos cerrados
+                billing.sort(key=lambda b: b["cycle"])
+                state["billing_history"] = billing[-6:]
+
         # Fallback: estimar gasto desde bandas cuando simulation no provee currentSpending
         if not state["current_spending"] and consumption.get("errorMessage") and self.tariff == "TRT":
             punta = state.get("consumption_punta", 0)
